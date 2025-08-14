@@ -16,6 +16,9 @@ ingress:
   className: "nginx"
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/limit-rps: "5"
+    nginx.ingress.kubernetes.io/limit-burst: "10"
+    nginx.ingress.kubernetes.io/proxy-body-size: "1m"
   hosts:
     - host: demo.pmulani.com
       paths:
