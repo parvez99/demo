@@ -88,13 +88,15 @@ jobs:
       - run:
           name: Install kubectl, helm, awscli
           command: |
-            helm plugin install https://github.com/jkroepke/helm-secrets
-            SOPS_VER="v3.9.0"
-            curl -LO https://github.com/getsops/sops/releases/download/${SOPS_VER}/sops-${SOPS_VER}.linux.amd64
+            set -euo pipefail
             sudo install -m 0755 sops-${SOPS_VER}.linux.amd64 /usr/local/bin/sops
             curl -LO "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
             sudo install -m 0755 kubectl /usr/local/bin/kubectl
             curl -sSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+            helm plugin install https://github.com/jkroepke/helm-secrets
+            SOPS_VER="v3.9.0"
+            curl -LO https://github.com/getsops/sops/releases/download/${SOPS_VER}/sops-${SOPS_VER}.linux.amd64
+            sudo install -m 0755 sops-${SOPS_VER}.linux.amd64 /usr/local/bin/sops
             curl -Ls "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
             unzip -q /tmp/awscliv2.zip -d /tmp && sudo /tmp/aws/install
             sudo apt-get update && sudo apt-get install -y jq
