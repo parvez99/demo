@@ -98,15 +98,6 @@ jobs:
             curl -sSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
             helm plugin install https://github.com/jkroepke/helm-secrets
             
-            # SOPS
-            SOPS_VER="v3.9.0"
-            curl -LO https://github.com/getsops/sops/releases/download/${SOPS_VER}/sops-${SOPS_VER}.linux.amd64
-            sudo install -m 0755 sops-${SOPS_VER}.linux.amd64 /usr/local/bin/sops
-            # Import PGP key if provided
-            if [ -n "${SOPS_PGP_PRIVATE_KEY:-}" ]; then
-              sudo apt-get update && sudo apt-get install -y gnupg
-              printf '%s' "$SOPS_PGP_PRIVATE_KEY" | gpg --batch --import
-            fi
             # aws-cli
             curl -Ls "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
             unzip -q /tmp/awscliv2.zip -d /tmp && sudo /tmp/aws/install
@@ -125,12 +116,13 @@ jobs:
           name: Helm upgrade
           command: |
             REPO_URL="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}"
-            helm secrets upgrade --install "$HELM_RELEASE" ./charts \
+            helm upgrade --install "$HELM_RELEASE" ./charts \
               -n "$K8S_NAMESPACE" --create-namespace \
               -f charts/values.yaml \
-              -f charts/values-secret-sops.yaml \
+              -f charts/values-secrets-ci.yaml
               --set image.repository="$REPO_URL" \
               --set image.tag="$IMAGE_TAG"
+              --wait --atomic
       - run:
           name: Wait for rollout
           command: |
