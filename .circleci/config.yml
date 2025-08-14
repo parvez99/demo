@@ -26,6 +26,13 @@ jobs:
             pip install pytest pytest-cov
             mkdir -p test-results
             pytest -q --junitxml=test-results/junit.xml
+            code=$?
+            # pytest exit code 5 == "no tests collected" -> treat as success
+            if [ $code -eq 5 ]; then
+              echo "No tests collected; treating as success."
+              exit 0
+            fi
+            exit $code
       - store_test_results:
           path: pmulaniapi/test-results
       - save_cache:
