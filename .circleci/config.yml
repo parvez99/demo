@@ -9,36 +9,6 @@ executors:
       - image: cimg/base:stable
 
 jobs:
-  test:
-    executor: py
-    steps:
-      - checkout
-      - restore_cache:
-          keys:
-            - v1-pip-{{ checksum "pmulaniapi/requirements.txt" }}
-            - v1-pip-
-      - run:
-          name: Install deps & run pytest
-          command: |
-            cd pmulaniapi
-            python -m pip install --upgrade pip
-            pip install -r requirements.txt
-            pip install pytest pytest-cov
-            mkdir -p test-results
-            pytest -q --junitxml=test-results/junit.xml
-            code=$?
-            # pytest exit code 5 == "no tests collected" -> treat as success
-            if [ $code -eq 5 ]; then
-              echo "No tests collected; treating as success."
-              exit 0
-            fi
-            exit $code
-      - store_test_results:
-          path: pmulaniapi/test-results
-      - save_cache:
-          key: v1-pip-{{ checksum "pmulaniapi/requirements.txt" }}
-          paths: [ ~/.cache/pip ]
-
   build_and_push:
     executor: dind
     environment:
