@@ -25,7 +25,8 @@ jobs:
             mkdir -p ~/.docker/cli-plugins
             curl -sSL https://github.com/docker/buildx/releases/download/v0.14.0/buildx-v0.14.0.linux-amd64 \
               -o ~/.docker/cli-plugins/docker-buildx && chmod +x ~/.docker/cli-plugins/docker-buildx
-      - run:
+      - &preflight_assume_role
+        run:
           name: Assume deploy role (if set)
           command: |
             set -euo pipefail
@@ -93,19 +94,14 @@ jobs:
             curl -Ls "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
             unzip -q /tmp/awscliv2.zip -d /tmp && sudo /tmp/aws/install
             sudo apt-get update && sudo apt-get install -y jq
+      - *preflight_assume_role
       - run:
-          name: Assume deploy role (if set)
-          command: |
-            if [ -n "${DEPLOY_ROLE_ARN:-}" ]; then
-              CREDS=$(aws sts assume-role --role-arn "$DEPLOY_ROLE_ARN" \
-                --role-session-name "circleci-${CIRCLE_WORKFLOW_ID}" --duration-seconds 3600)
-              export AWS_ACCESS_KEY_ID=$(echo "$CREDS" | jq -r .Credentials.AccessKeyId)
-              export AWS_SECRET_ACCESS_KEY=$(echo "$CREDS" | jq -r .Credentials.SecretAccessKey)
-              export AWS_SESSION_TOKEN=$(echo "$CREDS" | jq -r .Credentials.SessionToken)
-            fi
+          name: Who am I?
+          command: aws sts get-caller-identity --query Arn --output text
       - run:
           name: Auth to EKS
           command: |
+            aws eks describe-cluster --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
             aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
             kubectl get ns
       - run:
