@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pmulani-api
+  labels:
+    app: {{ .Values.appLabel }}
+spec:
+  selector:
+    app: {{ .Values.appLabel }}
+  type: {{ .Values.service.type }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: 8000

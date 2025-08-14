@@ -1,0 +1,3 @@
+.idea
+terraform/environments/production/.terraform
+terraform/environments/production/.terraform.lock.hcl

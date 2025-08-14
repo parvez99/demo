@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pmulani-api
+  labels:
+    app: {{ .Values.appLabel }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.appLabel }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.appLabel }}
+    spec:
+      volumes:
+        - name: db-secret
+          secret:
+            secretName: {{ default .Values.dbSecret.name .Values.existingDbSecret }}
+      containers:
+        - name: api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 8000
+          volumeMounts:
+            - name: db-secret
+              mountPath: {{ .Values.dbSecret.mountPath }}
+              readOnly: true
+          env:
+            - name: DB_HOST_FILE
+              value: "{{ .Values.dbSecret.mountPath }}/{{ .Values.dbSecret.keys.host }}"
+            - name: DB_PORT_FILE
+              value: "{{ .Values.dbSecret.mountPath }}/{{ .Values.dbSecret.keys.port }}"
+            - name: DB_NAME_FILE
+              value: "{{ .Values.dbSecret.mountPath }}/{{ .Values.dbSecret.keys.name }}"
+            - name: DB_USER_FILE
+              value: "{{ .Values.dbSecret.mountPath }}/{{ .Values.dbSecret.keys.user }}"
+            - name: DB_PASSWORD_FILE
+              value: "{{ .Values.dbSecret.mountPath }}/{{ .Values.dbSecret.keys.password }}"
+            - name: DB_SSLMODE_FILE
+              value: "{{ .Values.dbSecret.mountPath }}/{{ .Values.dbSecret.keys.sslmode }}"
+          readinessProbe:
+            httpGet: { path: {{ .Values.probes.readiness.path | quote }}, port: 8000 }
+            initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.probes.readiness.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.readiness.failureThreshold }}
+          livenessProbe:
+            httpGet: { path: {{ .Values.probes.liveness.path | quote }}, port: 8000 }
+            initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.probes.liveness.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
+          {{- if .Values.probes.startup.enabled }}
+          startupProbe:
+            httpGet: { path: {{ .Values.probes.startup.path | quote }}, port: 8000 }
+            periodSeconds: {{ .Values.probes.startup.periodSeconds }}
+            failureThreshold: {{ .Values.probes.startup.failureThreshold }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

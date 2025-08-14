@@ -1,0 +1,20 @@
+---
+# helm repo add nginx https://kubernetes.github.io/ingress-nginx
+# helm repo update
+# helm upgrade --install ingress-nginx nginx/ingress-nginx --namespace ingress-nginx --create-namespace --version 4.13.0 --values 01-values.yaml --dependency-update
+#
+# https://github.com/kubernetes/ingress-nginx/blob/main/charts/ingress-nginx/values.yaml
+
+controller:
+  ingressClassResource:
+    name: nginx
+    default: true
+  allowSnippetAnnotations: true
+
+  service:
+    type: LoadBalancer
+    annotations:
+      service.beta.kubernetes.io/aws-load-balancer-name: pmulani-api-ingress
+      service.beta.kubernetes.io/aws-load-balancer-type: external
+      service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+      service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip

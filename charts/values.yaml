@@ -1,0 +1,87 @@
+appLabel: pmulani-api
+
+image:
+  repository: "832850273244.dkr.ecr.eu-west-1.amazonaws.com/pmulani-api"  # e.g. 123456789012.dkr.ecr.eu-west-1.amazonaws.com/customer-api
+  tag: "v0.2.4"
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: demo.pmulani.com
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls:
+    - hosts:
+        - demo.pmulani.com
+      secretName: demo-pmulani-com-tls
+
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits:   { cpu: 500m, memory: 512Mi }
+
+env:
+  DB_HOST: "api.cdmwiq4ysm21.eu-west-1.rds.amazonaws.com"
+  DB_PORT: "5432"
+  DB_NAME: "apidb"
+  DB_USER: "postgres"
+  DB_SSLMODE: "require"
+  RATE_LIMIT_RPM: "60"
+  MAX_BODY_BYTES: "1048576"
+
+dbSecret:
+  create: true
+  name: api-db           # Secret name to mount
+  mountPath: /etc/db          # Where files will appear in the container
+  keys:                       # File names inside the mount
+    host: DB_HOST
+    port: DB_PORT
+    name: DB_NAME
+    user: DB_USER
+    password: DB_PASSWORD
+    sslmode: DB_SSLMODE
+
+# For people using an existing Secret (External Secrets, etc.)
+existingDbSecret: ""          # set to a name to use that instead of creating one
+
+# Annotations for Prometheus scraping if you don't use ServiceMonitor
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8000"
+  prometheus.io/path: "/metrics"
+  ad.datadoghq.com/api.logs: >-
+    [{"source":"python","service":"pmulani-api","tags":["env:demo","app:pmulani-api"]}]
+
+serviceMonitor:
+  enabled: false
+  interval: 15s
+  labels: {}
+
+probes:
+  liveness:
+    path: /livez
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 2
+    failureThreshold: 3
+  readiness:
+    path: /readyz
+    initialDelaySeconds: 20
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 6
+  startup:
+    enabled: true
+    path: /livez
+    periodSeconds: 5
+    failureThreshold: 30   # ~150s grace while DNS/SGs settle

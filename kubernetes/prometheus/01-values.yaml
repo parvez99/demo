@@ -1,0 +1,97 @@
+# helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+# helm repo update
+# helm upgrade prometheus prometheus-community/kube-prometheus-stack --install -n monitoring --create-namespace -f 01-values.yaml --dependency-update --version 66.1.0
+
+# https://github.com/prometheus-community/helm-charts/blob/main/charts/kube-prometheus-stack/values.yaml
+
+fullnameOverride: "prometheus-pmulani"
+cleanPrometheusOperatorObjectNames: true
+
+prometheus:
+  prometheusSpec:
+    # prometheus will pick up all objects now, regardless of labels
+    ruleSelectorNilUsesHelmValues: false
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+
+    retention: 2d
+    retentionSize: 10GiB
+    storageSpec:
+      volumeClaimTemplate:
+        metadata:
+          name: prometheus
+        spec:
+          storageClassName: ebs-sc
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - prometheus.pmulani.com
+    paths:
+      - /
+    servicePort: 9090
+    pathType: ImplementationSpecific
+    tls:
+      - secretName: prometheus-tls-2
+        hosts:
+          - prometheus.pmulani.com
+
+alertmanager:
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        metadata:
+          name: alertmanager
+        spec:
+          storageClassName: ebs-sc
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 1Gi
+
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - alertmanager.pmulani.com
+    paths:
+      - /
+    servicePort: 9093
+    pathType: ImplementationSpecific
+    tls:
+      - secretName: alertmanager-tls-2
+        hosts:
+          - alertmanager.pmulani.com
+
+grafana:
+  defaultDashboardsTimezone: browser
+  persistence:
+    enabled: false
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - grafana.pmulani.com
+    tls:
+      - secretName: grafana-tls-2
+        hosts:
+          - grafana.pmulani.com
+
+prometheus-node-exporter:
+  prometheus:
+    monitor:
+      relabelings:
+        - targetLabel: instance
+          sourceLabels: [__meta_kubernetes_endpoint_node_name]

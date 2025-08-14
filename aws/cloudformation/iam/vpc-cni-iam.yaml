@@ -1,0 +1,77 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Creates an IAM role for IRSA account.
+  Create: aws cloudformation create-stack --stack-name vpc-cni-irsa --template-body file://vpc-cni-iam.yaml --parameters file://vpc-cni-iam-parameters.json --region eu-west-1 --profile kpersonal --capabilities CAPABILITY_NAMED_IAM 
+  Update : aws cloudformation update-stack...
+Parameters:
+  VpcCniRoleName:
+    Type: String
+  VpcCniPolicyName:
+    Type: String
+  ClusterName:
+    Type: String
+Resources:
+  VpcCniRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join [ '-', [!Ref ClusterName, !Ref VpcCniRoleName] ]
+      Path: '/'
+      AssumeRolePolicyDocument: !Sub
+        - |
+          {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": {
+                        "Federated": "${IamOidc}"
+                    },
+                    "Action": "sts:AssumeRoleWithWebIdentity",
+                    "Condition": {
+                        "StringLike": {
+                            "${OidcEndpoint}:aud": "sts.amazonaws.com",
+                            "${OidcEndpoint}:sub": "system:serviceaccount:*:*"
+                        }
+                    }
+                }
+            ]
+          }
+        - {
+          "IamOidc": "arn:aws:iam::832850273244:oidc-provider/oidc.eks.eu-west-1.amazonaws.com/id/7B5D89A6A8489505D6132066EFB40C67",
+          "OidcEndpoint": "oidc.eks.eu-west-1.amazonaws.com/id/7B5D89A6A8489505D6132066EFB40C67"
+        }
+
+      Policies:
+        - PolicyName: !Join [ '-', [!Ref ClusterName, !Ref VpcCniPolicyName] ]
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: AllowCloudWatchAccess
+                Effect: Allow
+                Action:
+                  - logs:DescribeLogGroups
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+              - Sid: AllowEC2Access
+                Effect: Allow
+                Action:
+                  - ec2:AssignPrivateIpAddresses
+                  - ec2:AttachNetworkInterface
+                  - ec2:CreateNetworkInterface
+                  - ec2:DeleteNetworkInterface
+                  - ec2:DescribeInstances
+                  - ec2:DescribeTags
+                  - ec2:DescribeSubnets
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DescribeInstanceTypes
+                  - ec2:DetachNetworkInterface
+                  - ec2:ModifyNetworkInterfaceAttribute
+                  - ec2:UnassignPrivateIpAddresses
+                Resource: '*'
+              - Sid: CreateTagsAccess
+                Effect: Allow
+                Action:
+                  - ec2:CreateTags
+                Resource: 'arn:aws:ec2:*:*:network-interface/*'

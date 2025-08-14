@@ -1,0 +1,136 @@
+version: 2.1
+
+executors:
+  py:
+    docker:
+      - image: cimg/python:3.12
+  dind:
+    docker:
+      - image: cimg/base:stable
+
+jobs:
+  test:
+    executor: py
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-pip-{{ checksum "app/requirements.txt" }}
+            - v1-pip-
+      - run:
+          name: Install deps & run pytest
+          working_directory: app
+          command: |
+            python -m pip install --upgrade pip
+            pip install -r requirements.txt
+            # optional dev/test deps
+            pip install pytest pytest-cov
+            pytest -q --junitxml=test-results/junit.xml
+      - store_test_results:
+          path: app/test-results
+      - save_cache:
+          key: v1-pip-{{ checksum "app/requirements.txt" }}
+          paths: [ ~/.cache/pip ]
+
+  build_and_push:
+    executor: dind
+    environment:
+      IMAGE_TAG: << pipeline.git.revision >>
+    steps:
+      - checkout
+      - setup_remote_docker:
+          version: 20.10.18
+      - run:
+          name: Install awscli & buildx
+          command: |
+            sudo apt-get update && sudo apt-get install -y jq curl unzip
+            curl -Ls "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+            unzip -q /tmp/awscliv2.zip -d /tmp && sudo /tmp/aws/install
+            mkdir -p ~/.docker/cli-plugins
+            curl -sSL https://github.com/docker/buildx/releases/download/v0.14.0/buildx-v0.14.0.linux-amd64 \
+              -o ~/.docker/cli-plugins/docker-buildx && chmod +x ~/.docker/cli-plugins/docker-buildx
+      - run:
+          name: Assume deploy role (if set)
+          command: |
+            if [ -n "${DEPLOY_ROLE_ARN:-}" ]; then
+              CREDS=$(aws sts assume-role --role-arn "$DEPLOY_ROLE_ARN" \
+                --role-session-name "circleci-${CIRCLE_WORKFLOW_ID}" --duration-seconds 3600)
+              export AWS_ACCESS_KEY_ID=$(echo "$CREDS" | jq -r .Credentials.AccessKeyId)
+              export AWS_SECRET_ACCESS_KEY=$(echo "$CREDS" | jq -r .Credentials.SecretAccessKey)
+              export AWS_SESSION_TOKEN=$(echo "$CREDS" | jq -r .Credentials.SessionToken)
+            fi
+      - run:
+          name: Login to ECR
+          command: |
+            REPO_URL="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}"
+            aws ecr describe-repositories --repository-names "$ECR_REPO_NAME" --region "$AWS_REGION" >/dev/null
+            aws ecr get-login-password --region "$AWS_REGION" \
+              | docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+            echo "export REPO_URL=$REPO_URL" >> $BASH_ENV
+      - run:
+          name: Build & push image (linux/amd64)
+          command: |
+            source $BASH_ENV
+            docker buildx create --use --name cross 2>/dev/null || docker buildx use cross
+            docker buildx build --platform linux/amd64 \
+              -t "$REPO_URL:${IMAGE_TAG}" -t "$REPO_URL:latest" app --push
+
+  deploy_eks:
+    executor: dind
+    environment:
+      IMAGE_TAG: << pipeline.git.revision >>
+    steps:
+      - checkout
+      - run:
+          name: Install kubectl, helm, awscli
+          command: |
+            curl -LO "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+            sudo install -m 0755 kubectl /usr/local/bin/kubectl
+            curl -sSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+            curl -Ls "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+            unzip -q /tmp/awscliv2.zip -d /tmp && sudo /tmp/aws/install
+      - run:
+          name: Assume deploy role (if set)
+          command: |
+            if [ -n "${DEPLOY_ROLE_ARN:-}" ]; then
+              sudo apt-get update && sudo apt-get install -y jq
+              CREDS=$(aws sts assume-role --role-arn "$DEPLOY_ROLE_ARN" \
+                --role-session-name "circleci-${CIRCLE_WORKFLOW_ID}" --duration-seconds 3600)
+              export AWS_ACCESS_KEY_ID=$(echo "$CREDS" | jq -r .Credentials.AccessKeyId)
+              export AWS_SECRET_ACCESS_KEY=$(echo "$CREDS" | jq -r .Credentials.SecretAccessKey)
+              export AWS_SESSION_TOKEN=$(echo "$CREDS" | jq -r .Credentials.SessionToken)
+            fi
+      - run:
+          name: Auth to EKS
+          command: |
+            aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
+            kubectl get ns
+      - run:
+          name: Helm upgrade
+          command: |
+            REPO_URL="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}"
+            helm upgrade --install "$HELM_RELEASE" ./charts \
+              -n "$K8S_NAMESPACE" --create-namespace \
+              -f charts/values.yaml \
+              -f charts/values-secrets-ci.yaml \
+              --set image.repository="$REPO_URL" \
+              --set image.tag="$IMAGE_TAG"
+      - run:
+          name: Wait for rollout
+          command: |
+            kubectl -n "$K8S_NAMESPACE" rollout status deploy/"$HELM_RELEASE" --timeout=5m
+workflows:
+  version: 2
+  build_test_deploy:
+    jobs:
+      - test
+      - build_and_push:
+          requires: [test]
+          filters:
+            branches:
+              only: [main]
+      - deploy_eks:
+          requires: [build_and_push]
+          filters:
+            branches:
+              only: [main]

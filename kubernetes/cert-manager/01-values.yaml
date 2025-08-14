@@ -1,0 +1,26 @@
+# helm repo add jetstack https://charts.jetstack.io
+# helm repo update
+# helm upgrade cert-manager jetstack/cert-manager --install -n cert-manager --create-namespace -f 01-values.yaml
+#
+# https://github.com/cert-manager/cert-manager/blob/master/deploy/charts/cert-manager/values.yaml
+
+crds:
+  # This option decides if the CRDs should be installed
+  # as part of the Helm installation.
+  enabled: false
+
+  # This option makes it so that the "helm.sh/resource-policy": keep
+  # annotation is added to the CRD. This will prevent Helm from uninstalling
+  # the CRD when the Helm release is uninstalled.
+  # WARNING: when the CRDs are removed, all cert-manager custom resources
+  # (Certificates, Issuers, ...) will be removed too by the garbage collector.
+  keep: true
+config:
+  featureGates:
+    # Disable the use of Exact PathType in Ingress resources, to work around a bug in ingress-nginx
+    # https://github.com/kubernetes/ingress-nginx/issues/11176
+    ACMEHTTP01IngressPathTypeExact: false
+prometheus:
+  enabled: false
+  servicemonitor:
+    enabled: false

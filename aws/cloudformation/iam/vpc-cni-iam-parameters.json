@@ -1,0 +1,15 @@
+[
+  {
+    "ParameterKey": "ClusterName",
+    "ParameterValue": "pmulani-prod-eks-eu-west-1"
+  },
+  {
+    "ParameterKey": "VpcCniRoleName",
+    "ParameterValue": "vpc-cni-role"
+  },
+  {
+    "ParameterKey": "VpcCniPolicyName",
+    "ParameterValue": "vpc-cni-policy"
+  }
+]
+

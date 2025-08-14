@@ -1,0 +1,22 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+  Terraform backend bucket for running EKS cluster needed for deploying pmulani-prod microservice.
+  Create: aws cloudformation create-stack --stack-name <stack-name> --template-body file://<bucket-cf>.yaml --parameters file://<bucket-parameters>-parameters.json --region <region>
+  Update : aws cloudformation update-stack...
+Parameters:
+  pmulaniProdBucketName:
+    Type: String
+
+Resources:
+  pmulaniProdBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref pmulaniProdBucketName
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+Outputs:
+  pmulaniProdBucketName:
+    Description: Terraform backend bucket for running EKS cluster needed for deploying pmulani-prod microservice.
+    Value: !Ref pmulaniProdBucket

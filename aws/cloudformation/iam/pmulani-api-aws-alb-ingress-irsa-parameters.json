@@ -1,0 +1,23 @@
+[
+  {
+    "ParameterKey": "AwsControllerRoleName",
+    "ParameterValue": "pmulani-api-aws-controller-irsa-role"
+  },
+  {
+    "ParameterKey": "AwsControllerPolicyName",
+    "ParameterValue": "pmulani-api-aws-controller-irsa-policy"
+  },
+  {
+    "ParameterKey": "ClusterName",
+    "ParameterValue": "pmulani-api-eu-west-1"
+  },
+  {
+    "ParameterKey": "Namespace",
+    "ParameterValue": "kube-system"
+  },
+  {
+    "ParameterKey": "ServiceAccount",
+    "ParameterValue": "default"
+  }
+]
+

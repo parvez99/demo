@@ -1,0 +1,17 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: pmulani-api
+  namespace: customer
+  labels:
+    release: prometheus-pmulani
+spec:
+  namespaceSelector:
+    matchNames: ["customer"]
+  selector:
+    matchLabels:
+      app: pmulani-api     # must match your Service labels
+  endpoints:
+    - port: http           # your Service port name (80 -> targetPort 8000)
+      path: /metrics
+      interval: 15s

@@ -1,0 +1,7 @@
+[
+  {
+    "ParameterKey": "pmulaniProdBucketName",
+    "ParameterValue": "pmulani-prod-tf-backend"
+  }
+]
+
