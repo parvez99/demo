@@ -89,7 +89,6 @@ jobs:
           name: Install kubectl, helm, awscli
           command: |
             set -euo pipefail
-            sudo install -m 0755 sops-${SOPS_VER}.linux.amd64 /usr/local/bin/sops
             curl -LO "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
             sudo install -m 0755 kubectl /usr/local/bin/kubectl
             curl -sSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
