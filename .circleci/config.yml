@@ -88,6 +88,10 @@ jobs:
       - run:
           name: Install kubectl, helm, awscli
           command: |
+            helm plugin install https://github.com/jkroepke/helm-secrets
+            SOPS_VER="v3.9.0"
+            curl -LO https://github.com/getsops/sops/releases/download/${SOPS_VER}/sops-${SOPS_VER}.linux.amd64
+            sudo install -m 0755 sops-${SOPS_VER}.linux.amd64 /usr/local/bin/sops
             curl -LO "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
             sudo install -m 0755 kubectl /usr/local/bin/kubectl
             curl -sSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
@@ -108,10 +112,10 @@ jobs:
           name: Helm upgrade
           command: |
             REPO_URL="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}"
-            helm upgrade --install "$HELM_RELEASE" ./charts \
+            helm secrets upgrade --install "$HELM_RELEASE" ./charts \
               -n "$K8S_NAMESPACE" --create-namespace \
               -f charts/values.yaml \
-              -f charts/values-secrets-ci.yaml \
+              -f charts/values-secret-sops.yaml \
               --set image.repository="$REPO_URL" \
               --set image.tag="$IMAGE_TAG"
       - run:
