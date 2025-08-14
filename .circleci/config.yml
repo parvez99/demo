@@ -28,21 +28,46 @@ jobs:
       - run:
           name: Assume deploy role (if set)
           command: |
+            set -euo pipefail
+            # Region fallback + persist for later steps
+            export AWS_REGION="${AWS_REGION:-${REGION:-eu-west-1}}"
+            export AWS_DEFAULT_REGION="$AWS_REGION"
+            echo "export AWS_REGION=$AWS_REGION" >> "$BASH_ENV"
+            echo "export AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION" >> "$BASH_ENV"
+            
+            # Require base creds if you plan to assume a role
             if [ -n "${DEPLOY_ROLE_ARN:-}" ]; then
-              CREDS=$(aws sts assume-role --role-arn "$DEPLOY_ROLE_ARN" \
-                --role-session-name "circleci-${CIRCLE_WORKFLOW_ID}" --duration-seconds 3600)
-              export AWS_ACCESS_KEY_ID=$(echo "$CREDS" | jq -r .Credentials.AccessKeyId)
-              export AWS_SECRET_ACCESS_KEY=$(echo "$CREDS" | jq -r .Credentials.SecretAccessKey)
-              export AWS_SESSION_TOKEN=$(echo "$CREDS" | jq -r .Credentials.SessionToken)
+              if [ -z "${AWS_ACCESS_KEY_ID:-}" ] || [ -z "${AWS_SECRET_ACCESS_KEY:-}" ]; then
+                echo "ERROR: DEPLOY_ROLE_ARN is set but base AWS credentials are missing."
+                exit 1
+              fi
+              echo "Assuming role: $DEPLOY_ROLE_ARN"
+              CREDS="$(aws sts assume-role \
+                --role-arn "$DEPLOY_ROLE_ARN" \
+                --role-session-name "circleci-${CIRCLE_WORKFLOW_ID}" \
+                --duration-seconds 3600)"
+              # Persist creds for next steps
+              echo "export AWS_ACCESS_KEY_ID=$(echo "$CREDS" | jq -r .Credentials.AccessKeyId)" >> "$BASH_ENV"
+              echo "export AWS_SECRET_ACCESS_KEY=$(echo "$CREDS" | jq -r .Credentials.SecretAccessKey)" >> "$BASH_ENV"
+              echo "export AWS_SESSION_TOKEN=$(echo "$CREDS" | jq -r .Credentials.SessionToken)" >> "$BASH_ENV"
+            else
+              echo "DEPLOY_ROLE_ARN not set; using provided base credentials."
             fi
+      - run: aws sts get-caller-identity
       - run:
           name: Login to ECR
           command: |
+            set -euo pipefail
             REPO_URL="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}"
-            aws ecr describe-repositories --repository-names "$ECR_REPO_NAME" --region "$AWS_REGION" >/dev/null
+            # Create the repo if it doesn't exist (requires CreateRepository on the role)
+            aws ecr describe-repositories --repository-names "$ECR_REPO_NAME" \
+              --region "$AWS_REGION" >/dev/null 2>&1 || \
+            aws ecr create-repository --repository-name "$ECR_REPO_NAME" \
+              --region "$AWS_REGION" >/dev/null
             aws ecr get-login-password --region "$AWS_REGION" \
-              | docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-            echo "export REPO_URL=$REPO_URL" >> $BASH_ENV
+              | docker login --username AWS --password-stdin \
+                "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+            echo "export REPO_URL=$REPO_URL" >> "$BASH_ENV"
       - run:
           name: Build & push image (linux/amd64)
           command: |
