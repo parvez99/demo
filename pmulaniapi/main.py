@@ -35,7 +35,7 @@ if not DATABASE_URL:
         raise RuntimeError("Set DATABASE_URL for tests or mount DB_* secrets in the pod")
     DATABASE_URL = (
         f"postgresql+psycopg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-        f"?sslmode={DB_SSLMODE}"
+        f"?sslmode={DB_SSLMODE}&connect_timeout=3"
     )
 # basic in‑pod rate limiting (best effort)
 RATE_LIMIT_RPM = int(os.getenv("RATE_LIMIT_RPM", "60"))  # requests per minute per client
@@ -59,13 +59,41 @@ class Customer(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
 
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True, connect_args={"connect_timeout": 3})
+from sqlalchemy.engine import make_url
+from sqlalchemy.pool import StaticPool
+
+url = make_url(DATABASE_URL)
+if url.get_backend_name().startswith("sqlite"):
+    # For tests: sqlite+pysqlite:///:memory: — share one in-memory DB across sessions
+    in_memory = url.database in (None, "", ":memory:")
+    if in_memory:
+        engine = create_engine(
+            DATABASE_URL,
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+    else:
+        engine = create_engine(
+            DATABASE_URL,
+            connect_args={"check_same_thread": False},
+        )
+else:
+    # Postgres/psycopg: use pool_pre_ping; connect_timeout already in the URL
+    engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 try:
     Base.metadata.create_all(bind=engine)
 except OperationalError as e:
     logger.error("db_init_failed", extra={"error": str(e)})
+# engine = create_engine(DATABASE_URL, pool_pre_ping=True, connect_args={"connect_timeout": 3})
+# SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+#
+# try:
+#     Base.metadata.create_all(bind=engine)
+# except OperationalError as e:
+#     logger.error("db_init_failed", extra={"error": str(e)})
 
 # -------------------- Prometheus metrics --------------------
 HTTP_REQUESTS_TOTAL = Counter(
@@ -111,7 +139,7 @@ async def metered_and_limited(request: Request, call_next):
     cl = request.headers.get("content-length")
     if cl and int(cl) > MAX_BODY_BYTES:
         VALIDATION_FAILURES_TOTAL.inc()
-        return HTTPException(status_code=413, detail="payload too large")
+        raise HTTPException(status_code=413, detail="payload too large")
 
     # rate limit best‑effort
     now = time.time()
@@ -122,7 +150,7 @@ async def metered_and_limited(request: Request, call_next):
         q.popleft()
     if len(q) >= RATE_LIMIT_RPM:
         RATE_LIMITED_TOTAL.inc()
-        return HTTPException(status_code=429, detail="rate limit exceeded")
+        raise HTTPException(status_code=429, detail="rate limit exceeded")
     q.append(now)
 
     # metrics around the handler
