@@ -58,8 +58,6 @@ class Customer(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
 
-if not DB_HOST or not DB_USER:
-    raise RuntimeError("DB_HOST/DB_USER not set (check Secret mount and *_FILE env)")
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True, connect_args={"connect_timeout": 3})
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
