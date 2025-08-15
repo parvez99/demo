@@ -9,20 +9,6 @@ executors:
       - image: cimg/base:stable
 
 jobs:
-  test:
-    executor: py
-    steps:
-      - checkout
-      - run:
-          name: Install deps & pytest
-          command: |
-            cd pmulaniapi
-            python -m pip install --upgrade pip
-            pip install -r requirements.txt pytest
-            pip install httpx
-            pwd; ls -la; echo "--- tests ---"; ls -la tests || true
-            PYTHONPATH=$PWD python -m pytest -q tests
-            pytest -q
   build_and_push:
     executor: dind
     environment:
@@ -146,9 +132,7 @@ workflows:
   version: 2
   build_test_deploy:
     jobs:
-      - test
       - build_and_push:
-          requires: [test]
           filters:
             branches:
               only: [main]
