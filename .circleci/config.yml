@@ -20,7 +20,8 @@ jobs:
             python -m pip install --upgrade pip
             pip install -r requirements.txt pytest
             pip install httpx
-            PYTHONPATH=. pytest -q tests
+            pwd; ls -la; echo "--- tests ---"; ls -la tests || true
+            PYTHONPATH=$PWD python -m pytest -q tests
             pytest -q
   build_and_push:
     executor: dind
