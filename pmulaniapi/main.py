@@ -31,9 +31,8 @@ DB_SSLMODE = _from_file_or_env("DB_SSLMODE", "require")
 RATE_LIMIT_RPM = int(os.getenv("RATE_LIMIT_RPM", "60"))  # requests per minute per client
 MAX_BODY_BYTES = int(os.getenv("MAX_BODY_BYTES", "1048576"))  # 1MiB
 
-DATABASE_URL = (
-    f"postgresql+psycopg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?sslmode={DB_SSLMODE}"
-)
+DATABASE_URL = os.getenv("DATABASE_URL") or \
+               f"postgresql+psycopg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?sslmode={DB_SSLMODE}"
 
 # -------------------- Logging --------------------
 logger = logging.getLogger("pmulani-api")
