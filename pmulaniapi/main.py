@@ -20,6 +20,7 @@ def _from_file_or_env(key: str, default: str | None = None) -> str | None:
             return f.read().strip()
     return os.getenv(key, default)
 
+
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not DATABASE_URL:
@@ -30,10 +31,12 @@ if not DATABASE_URL:
     DB_PASSWORD = _from_file_or_env("DB_PASSWORD", "")
     DB_SSLMODE = _from_file_or_env("DB_SSLMODE", "require")
 
-DATABASE_URL = (
-    f"postgresql+psycopg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-    f"?sslmode={DB_SSLMODE}"
-)
+    if not DB_HOST or not DB_USER:
+        raise RuntimeError("Set DATABASE_URL for tests or mount DB_* secrets in the pod")
+    DATABASE_URL = (
+        f"postgresql+psycopg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+        f"?sslmode={DB_SSLMODE}"
+    )
 # basic in‑pod rate limiting (best effort)
 RATE_LIMIT_RPM = int(os.getenv("RATE_LIMIT_RPM", "60"))  # requests per minute per client
 MAX_BODY_BYTES = int(os.getenv("MAX_BODY_BYTES", "1048576"))  # 1MiB
