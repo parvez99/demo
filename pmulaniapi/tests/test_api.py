@@ -1,8 +1,11 @@
+# pmulaniapi/tests/test_api.py
 import os
-os.environ["DATABASE_URL"] = "sqlite+pysqlite:///:memory:"
+os.environ["DATABASE_URL"] = "sqlite+pysqlite:///:memory:"  # DB-less tests
+
 from fastapi.testclient import TestClient
-import main
-client = TestClient(main.app)
+from pmulaniapi.main import app  # <-- import from package
+
+client = TestClient(app)
 
 def test_livez():
     r = client.get("/livez")
