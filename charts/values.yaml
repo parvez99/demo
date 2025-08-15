@@ -1,3 +1,4 @@
+#
 appLabel: pmulani-api
 
 image:
@@ -43,7 +44,7 @@ env:
   MAX_BODY_BYTES: "1048576"
 
 dbSecret:
-  create: true
+  create: false
   name: api-db           # Secret name to mount
   mountPath: /etc/db          # Where files will appear in the container
   keys:                       # File names inside the mount
@@ -88,3 +89,19 @@ probes:
     path: /livez
     periodSeconds: 5
     failureThreshold: 30   # ~150s grace while DNS/SGs settle
+
+# Pod-level security
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001        # must match a non-root user in your image (see Dockerfile note below)
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault   # require kernel-seccomp default
+
+# Container-level security
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]

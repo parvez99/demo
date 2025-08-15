@@ -14,6 +14,7 @@ A minimal **Python FastAPI** microservice that does CRUD on **PostgreSQL (RDS)**
 - **ECR** image tagged with the commit SHA
 - **Grafana** dashboard (simple dashboard)
 - **Datadog** Live Tail filtered to `service:pmulani-api`
+- **Security** PSS with restricted policy applied.
 - **DDoS mitigations**: app rate-limits + body cap + nginx rate limits, Shield Standard on NLB, private RDS, secrets as files.
 
 Everything is deployed to EKS with Autoscaling enabled.
