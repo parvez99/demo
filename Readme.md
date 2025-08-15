@@ -280,3 +280,7 @@ DEPLOY_ROLE_ARN=arn:aws:iam::<acount-id>:role/Circle-CI-Role   # if assuming a r
 ## 11) What's next
 
 Apply network policies to restrict access to the cluster and deployed services.
+
+### Challenges ###
+
+- Getting circle-ci integrated with EKS cluster took some attempts but I figured a way to use Assume Role over plain AWS credentials.
