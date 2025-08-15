@@ -281,6 +281,12 @@ DEPLOY_ROLE_ARN=arn:aws:iam::<acount-id>:role/Circle-CI-Role   # if assuming a r
 
 Apply network policies to restrict access to the cluster and deployed services.
 
+### Assumptions ###
+- No specific UI design was needed for this task.
+- Load / stress testing was not needed at this point.
+- To keep my AWS costs low, it's ok to run smallest instances type and only two AZ. 
+- RDS is multi AZ but not cluster deployment for costs purposes.
+- Given this is a test setup, alerting is not required at this point.
 ### Challenges ###
 
 - Getting circle-ci integrated with EKS cluster took some attempts but I figured a way to use Assume Role over plain AWS credentials.
