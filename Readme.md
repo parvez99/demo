@@ -10,7 +10,7 @@ A minimal **Python FastAPI** microservice that does CRUD on **PostgreSQL (RDS)**
 ## What's covered
 
 - **App URL** `https://demo.pmulani.com` and **Swagger** at `/docs`
-- **CircleCI** project (green pipeline: test → build → deploy)
+- **CircleCI** project (green pipeline: test → build → deploy) : Any changes pushed to the repo (main) are immediately rolled out by circleci.
 - **ECR** image tagged with the commit SHA
 - **Grafana** dashboard (simple dashboard)
 - **Datadog** Live Tail filtered to `service:pmulani-api`
@@ -73,6 +73,7 @@ Outputs include: **EKS cluster name**, **RDS endpoint**, **ECR repo URL**, **OID
 
 ## 2) Cluster add-ons
 
+Most of the cluster addons are deployed using helm and stored under kubernetes folder. Each values file contains instructions on how to deploy the addon.
 ### 2.1 ingress-nginx (NLB, IP mode)
 
 ### 2.2 cert-manager (CRDs + production ClusterIssuer)
@@ -279,4 +280,3 @@ DEPLOY_ROLE_ARN=arn:aws:iam::<acount-id>:role/Circle-CI-Role   # if assuming a r
 ## 11) What's next
 
 Apply network policies to restrict access to the cluster and deployed services.
-
