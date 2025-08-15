@@ -119,9 +119,9 @@ jobs:
             helm upgrade --install "$HELM_RELEASE" ./charts \
               -n "$K8S_NAMESPACE" --create-namespace \
               -f charts/values.yaml \
-              -f charts/values-secrets-ci.yaml
+              -f charts/values-secrets-ci.yaml \
               --set image.repository="$REPO_URL" \
-              --set image.tag="$IMAGE_TAG"
+              --set image.tag="$IMAGE_TAG" \
               --wait --atomic
       - run:
           name: Wait for rollout
